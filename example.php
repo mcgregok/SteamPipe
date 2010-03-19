@@ -13,6 +13,6 @@ $steam = new SteamApi('mcgregok');
 /*functions return associative array*/
 ?><pre><?
 
-var_export($steam->fetch_profile());
+var_export($steam->fetch_games());
 
 ?></pre><?

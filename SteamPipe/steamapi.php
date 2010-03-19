@@ -146,78 +146,55 @@ Class SteamApi
         
         $games     = array();
           
-        $html = $this->fetch($this->base_profile_url . $this->steam64ID . '/games/');
+        $xml = $this->fetch($this->base_profile_url . $this->steam64ID . '/games/?xml=1');
         
-        if($html === false)
+        if($xml === false)
         {
             //error and message set in fetch
             return false;
         }
-        
-        $domhtml = new DOMDocument();
-        @$domhtml->loadHTML($html);
-        
-        $xpath = new Domxpath($domhtml);
-        //parse game names
-        foreach($xpath->query("//h4") as $node)
+
+	$simplexml  = @simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+        if($simplexml === false)
         {
-            $hoursPlayed = 0;
-            $hoursPlayedEnglish = "Played 0 hours past 2 weeks";
-            $statsName = '';
-            $loop_node = $node->nextSibling;
-            
-            //find hours played and statsName
-            while($loop_node)
-            {
-                //echo $loop_node->nodeName;
-                if($loop_node->nodeName == 'h5')//find hours played if any
-                {
-                    $hoursPlayed = str_replace(array('Played ', ' hours past 2 weeks'), '', $loop_node->nodeValue);
-                    $hoursPlayedEnglish = $loop_node->nodeValue;
-                    //var_export($loop_node->nodeValue);
-                }
-                
-                if($loop_node->nodeName=='a' && $loop_node->nodeValue == 'View stats')
-                {
-                    $statsName = array_pop(explode('/', $loop_node->attributes->getNamedItem('href')->value));
-                    //echo $statsName;
-                }
-                
-                if($loop_node->nodeName=='div') //hack to end searching after current game...
-                {
-                    break;
-                }
-                
-                $loop_node = $loop_node->nextSibling;
-                //echo'<br>';
-            }
-            
-            $game_info = array('gameName'           => $node->nodeValue,
-                               'hoursPlayed'        => $hoursPlayed,
-                               'hoursPlayedEnglish' => $hoursPlayedEnglish);
-            if($statsName != '')
-            {
-                $game_info['statsName'] = $statsName;
-            }
-            
-            array_push($games, $game_info);
+            $this->error   = 1;
+            $this->message = 'Error Parsing steam profile xml';
+            return false;
         }
- 
-        //parse gameLogo / gamelink
-        $counter = 0;
-        foreach($xpath->query("//div[@class='gameLogo']/a/img[@src]") as $node)
+
+        $data = $this->process_xml($simplexml);
+	
+        //fix games
+        if(array_key_exists('games', $data) && array_key_exists('game', $data['games']))
         {
-        
-            $games[$counter]['gameLogo'] = $node->attributes->getNamedItem('src')->value;
+            $data['games'] = array_merge($data['games'], $data['games']['game']);
+            unset($data['games']['game']);
             
-            $games[$counter]['gameLink'] = $node->parentNode->attributes->getNamedItem('href')->value;
-            $counter++;
+            if($data['games'][0] == '')
+            {
+                $data['games'] = array($data['games']);
+            }
         }
+        else
+        {
+            $data['games'] = NULL;
+        }                
         
-        //todo: figure out a way to parse the game stats links correctly
-        //var_export($games);
-        $this->games_cache = $games;
-        return $games;
+	//add statsName for legacy support/achievement functionality support
+
+	foreach($data['games'] as $key => $game)
+	{
+	    if(array_key_exists('globalStatsLink', $game))
+	    {
+		if(preg_match('@.+/(.+)/achievements/@', $game['globalStatsLink'], $match))
+		{
+		    $data['games'][$key]['statsName'] = $match[1];
+		}
+     	    }
+	}
+
+        $this->games_cache = $data;
+        return $data;
     }
     
     public function fetch_friends()
