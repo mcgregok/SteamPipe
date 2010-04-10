@@ -1,4 +1,6 @@
 <?
+require_once('helpers/xml.php');
+
 Class SteamApi
 {
     private $steam64ID;
@@ -53,7 +55,7 @@ Class SteamApi
         }
         
         
-        $data = $this->process_xml($simplexml);
+        $data = process_xml($simplexml);
         
         if(empty($data['steamID']))
         {
@@ -162,7 +164,7 @@ Class SteamApi
             return false;
         }
 
-        $data = $this->process_xml($simplexml);
+        $data = process_xml($simplexml);
 	
         //fix games
         if(array_key_exists('games', $data) && array_key_exists('game', $data['games']))
@@ -290,7 +292,7 @@ Class SteamApi
             return false;
         }
         
-        $data = $this->process_xml($simplexml);
+        $data = process_xml($simplexml);
         
         //data fixing
         $data = $data['achievements']['achievement'];
@@ -304,30 +306,6 @@ Class SteamApi
         $this->achievement_cache[$statsName] = $data;
         
         return $data; 
-    }
-
-    private function process_xml($input, $recurse = false)
-    {
-        $data = ((!$recurse) && is_string($input))? simplexml_load_string($input, 'SimpleXMLElement', LIBXML_NOCDATA): $input;
-       
-        if ($data instanceof SimpleXMLElement)
-        {
-            $data = (array) $data;
-            if(empty($data))
-            {
-                $data = '';
-            }
-        }
-        
-        if (is_array($data)) 
-        {
-            foreach ($data as &$item) 
-            {
-                $item = $this->process_xml($item, true); //edit by reference
-            }
-        }
-
-        return $data;
     }
 
     private function fetch($url)
