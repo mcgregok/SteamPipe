@@ -11,5 +11,5 @@ Current Features Include:
 
 * Fetching public profile page information
 * Fetching user friends lists
-* Fetching games owned
+* Fetching games owned (needs to be refactored to use the XML file that is now present)
 * Fetching Achievements (both earned and not earned)
